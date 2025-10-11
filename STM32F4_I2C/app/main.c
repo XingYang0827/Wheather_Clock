@@ -6,6 +6,7 @@
 #include "cpu_delay.h"
 #include "usart.h"
 
+
 #define EEPROM_ADDR  0x50  // A0=A1=A2=0
 #define EEPROM_STM32_ADDR 0xA0
 
@@ -36,39 +37,28 @@ void I2C1_Init(void) {
     I2C_Cmd(I2C1, ENABLE);
 }
 
-#define I2C_CHECK_EVENT(EVENT, TIMEOUT) \
-	do { \
-		int32_t timeout = TIMEOUT; \
-		while (!I2C_CheckEvent(I2C1, EVENT) && timeout > 0) { \
-				cpu_delay(10); \
-				timeout -= 10; \
-			} \
-		if (timeout <= 0) {return false;} \
-	} while (0)
-	
-	
-static bool EEPROM_Page_Write(uint16_t MemAddress, uint8_t data[], uint32_t length) {
+static bool EEPROM_Write(uint16_t MemAddress, uint8_t data[], uint32_t length) {
     // wait until line is empty
-		while (I2C_GetFlagStatus(I2C1, I2C_FLAG_BUSY));
+    while (I2C_GetFlagStatus(I2C1, I2C_FLAG_BUSY));
 	
     I2C_GenerateSTART(I2C1, ENABLE);
-    I2C_CHECK_EVENT(I2C_EVENT_MASTER_MODE_SELECT, 1000);
+    while (!I2C_CheckEvent(I2C1, I2C_EVENT_MASTER_MODE_SELECT));
 	
     I2C_Send7bitAddress(I2C1, EEPROM_ADDR << 1, I2C_Direction_Transmitter);
-    I2C_CHECK_EVENT(I2C_EVENT_MASTER_TRANSMITTER_MODE_SELECTED, 1000);
+    while (!I2C_CheckEvent(I2C1, I2C_EVENT_MASTER_TRANSMITTER_MODE_SELECTED));
 
     // send high address bytes
     I2C_SendData(I2C1, (uint8_t)(MemAddress >> 8));
-    I2C_CHECK_EVENT(I2C_EVENT_MASTER_BYTE_TRANSMITTED, 1000);
+    while (!I2C_CheckEvent(I2C1, I2C_EVENT_MASTER_BYTE_TRANSMITTED));
 
     // send low address bytes
     I2C_SendData(I2C1, (uint8_t)(MemAddress & 0xFF));
-    I2C_CHECK_EVENT(I2C_EVENT_MASTER_BYTE_TRANSMITTED, 1000);
+    while (!I2C_CheckEvent(I2C1, I2C_EVENT_MASTER_BYTE_TRANSMITTED));
 
     // send data
 		for (uint32_t i = 0; i < length; i++) {
 			I2C_SendData(I2C1, data[i]);
-			I2C_CHECK_EVENT(I2C_EVENT_MASTER_BYTE_TRANSMITTED, 1000);
+			while (!I2C_CheckEvent(I2C1, I2C_EVENT_MASTER_BYTE_TRANSMITTED));
 		}
 
     I2C_GenerateSTOP(I2C1, ENABLE);
@@ -76,26 +66,24 @@ static bool EEPROM_Page_Write(uint16_t MemAddress, uint8_t data[], uint32_t leng
 		return true;
 }
 
-	
-static bool EEPROM_Page_Read(uint16_t MemAddress, uint8_t data[], uint32_t length) {
-		int timeout;
-		while (I2C_GetFlagStatus(I2C1, I2C_FLAG_BUSY));
+static bool EEPROM_Read(uint16_t MemAddress, uint8_t data[], uint32_t length) {
+    while (I2C_GetFlagStatus(I2C1, I2C_FLAG_BUSY));
 
     I2C_GenerateSTART(I2C1, ENABLE);
 		I2C_AcknowledgeConfig(I2C1, ENABLE);
-		I2C_CHECK_EVENT(I2C_EVENT_MASTER_MODE_SELECT, 1000);
-   
+    while (!I2C_CheckEvent(I2C1, I2C_EVENT_MASTER_MODE_SELECT));
+
     I2C_Send7bitAddress(I2C1, EEPROM_ADDR << 1, I2C_Direction_Transmitter);
-    I2C_CHECK_EVENT(I2C_EVENT_MASTER_TRANSMITTER_MODE_SELECTED, 1000);
+    while (!I2C_CheckEvent(I2C1, I2C_EVENT_MASTER_TRANSMITTER_MODE_SELECTED));
 
     // send register address
     I2C_SendData(I2C1, (uint8_t)(MemAddress >> 8));
-    I2C_CHECK_EVENT(I2C_EVENT_MASTER_BYTE_TRANSMITTED, 1000);
+    while (!I2C_CheckEvent(I2C1, I2C_EVENT_MASTER_BYTE_TRANSMITTED));
 
     I2C_SendData(I2C1, (uint8_t)(MemAddress & 0xFF));
-    I2C_CHECK_EVENT(I2C_EVENT_MASTER_BYTE_TRANSMITTED, 1000);
+    while (!I2C_CheckEvent(I2C1, I2C_EVENT_MASTER_BYTE_TRANSMITTED));
 
-		I2C_AcknowledgeConfig(I2C1, ENABLE);
+	I2C_AcknowledgeConfig(I2C1, ENABLE); // TODO: try flip
     // restart
     I2C_GenerateSTART(I2C1, ENABLE);
     while (!I2C_CheckEvent(I2C1, I2C_EVENT_MASTER_MODE_SELECT));
@@ -113,6 +101,10 @@ static bool EEPROM_Page_Read(uint16_t MemAddress, uint8_t data[], uint32_t lengt
 			data[i] = I2C_ReceiveData(I2C1);
 		}
 		I2C_AcknowledgeConfig(I2C1, ENABLE);
+
+    // stop response
+    while (!I2C_CheckEvent(I2C1, I2C_EVENT_MASTER_BYTE_RECEIVED));
+    I2C_GenerateSTOP(I2C1, ENABLE);
 		
 		return true;
 }
@@ -121,19 +113,16 @@ static uint8_t testnums[200];
 
 int main (void) {
 	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOB, ENABLE);
-	RCC_AHB1PeriphClockCmd(RCC_APB2Periph_USART1, ENABLE);
   RCC_APB1PeriphClockCmd(RCC_APB1Periph_I2C1, ENABLE);
 	
 	I2C1_Init();
-	usart_init();
 	
 	for (uint32_t i= 0; i < 200; i++) {
 		testnums[i] = i+1;
 	}
 	
-	EEPROM_Page_Write(0x0000, testnums, 200);
-	cpu_delay(5 * 1000);
+	EEPROM_Write(0x0000, testnums, 200);
 	memset(testnums, 0, 200);
-	EEPROM_Page_Read(0x0000, testnums, 200);
+	EEPROM_Read(0x0000, testnums, 200);
 	while(1);
 }
