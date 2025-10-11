@@ -341,7 +341,7 @@
               <MiscControls></MiscControls>
               <Define>STM32F40_41xxx,USE_STDPERIPH_DRIVER,HSE_VALUE=8000000</Define>
               <Undefine></Undefine>
-              <IncludePath>..\firmware\cmsis\core;..\firmware\cmsis\device;..\firmware\driver\inc</IncludePath>
+              <IncludePath>..\firmware\cmsis\core;..\firmware\cmsis\device;..\firmware\driver\inc;..\driver\cpu_delay;..\driver\usart</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -394,6 +394,18 @@
         </Group>
         <Group>
           <GroupName>driver</GroupName>
+          <Files>
+            <File>
+              <FileName>cpu_delay.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\driver\cpu_delay\cpu_delay.c</FilePath>
+            </File>
+            <File>
+              <FileName>usart.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\driver\usart\usart.c</FilePath>
+            </File>
+          </Files>
         </Group>
         <Group>
           <GroupName>firmware/cmsis</GroupName>
