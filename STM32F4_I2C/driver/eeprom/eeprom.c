@@ -77,7 +77,7 @@ static bool eeprom_wait_ready(uint32_t timeout)
 
 static bool eeprom_page_write(uint16_t address, uint8_t data[], uint32_t length)
 {
-		while (I2C_GetFlagStatus(I2C1, I2C_FLAG_BUSY));
+	while (I2C_GetFlagStatus(I2C1, I2C_FLAG_BUSY));
     I2C_AcknowledgeConfig(I2C1, ENABLE);
     I2C_GenerateSTART(I2C1, ENABLE);
     I2C_CHECK_EVENT(I2C_EVENT_MASTER_MODE_SELECT, 10000);
@@ -97,7 +97,7 @@ static bool eeprom_page_write(uint16_t address, uint8_t data[], uint32_t length)
 }
 static bool eeprom_page_read(uint16_t address, uint8_t data[], uint32_t length)
 {
-		while (I2C_GetFlagStatus(I2C1, I2C_FLAG_BUSY));
+	while (I2C_GetFlagStatus(I2C1, I2C_FLAG_BUSY));
     I2C_AcknowledgeConfig(I2C1, ENABLE);
     I2C_GenerateSTART(I2C1, ENABLE);
     I2C_CHECK_EVENT(I2C_EVENT_MASTER_MODE_SELECT, 1000);

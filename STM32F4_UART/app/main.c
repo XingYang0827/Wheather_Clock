@@ -3,11 +3,13 @@
 #include <string.h>
 #include "stm32f4xx.h"
 #include <stdio.h>
+#include <stm32f4xx_usart.h>
 
 volatile uint32_t sysclk, hclk, pclk1, pclk2;
 
 static void board_lowlevel_init(void)
 {
+		RCC_APB1PeriphClockCmd(RCC_APB1Periph_I2C1, DISABLE);
     RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOB, ENABLE);
 		RCC_APB2PeriphClockCmd(RCC_APB2Periph_USART1, ENABLE);
 }
@@ -39,6 +41,7 @@ static void usart_init(void)
     USART_Cmd(USART1, ENABLE);
 }
 
+
 static void usart_write(const char* str)
 {
 		while (*str)
@@ -48,18 +51,18 @@ static void usart_write(const char* str)
     }
 }
 
-//static void led_init(void)
-//{
-//    RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOD, ENABLE);
+static void led_init(void)
+{
+    RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOD, ENABLE);
 
-//    GPIO_InitTypeDef GPIO_InitStruct;
-//    GPIO_InitStruct.GPIO_Pin = GPIO_Pin_14; // LD4
-//    GPIO_InitStruct.GPIO_Mode = GPIO_Mode_OUT;
-//    GPIO_InitStruct.GPIO_Speed = GPIO_Speed_50MHz;
-//    GPIO_InitStruct.GPIO_OType = GPIO_OType_PP;
-//    GPIO_InitStruct.GPIO_PuPd = GPIO_PuPd_NOPULL;
-//    GPIO_Init(GPIOD, &GPIO_InitStruct);
-//}
+    GPIO_InitTypeDef GPIO_InitStruct;
+    GPIO_InitStruct.GPIO_Pin = GPIO_Pin_14; // LD4
+    GPIO_InitStruct.GPIO_Mode = GPIO_Mode_OUT;
+    GPIO_InitStruct.GPIO_Speed = GPIO_Speed_50MHz;
+    GPIO_InitStruct.GPIO_OType = GPIO_OType_PP;
+    GPIO_InitStruct.GPIO_PuPd = GPIO_PuPd_NOPULL;
+    GPIO_Init(GPIOD, &GPIO_InitStruct);
+}
 
  // clock check
 void check_clock(void) {

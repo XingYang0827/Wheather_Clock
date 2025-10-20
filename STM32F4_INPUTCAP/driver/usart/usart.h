@@ -1,6 +1,8 @@
 #ifndef __USART_H__
 #define __USART_H__
 
+// Note: USART printf redirection (fputc/_sys_write) implemented in usart.c
+
 #include <stdint.h>
 
 typedef void (*usart_received_func_t)(uint8_t data);

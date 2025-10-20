@@ -1,11 +1,15 @@
 #include <stdint.h>
 #include <stdio.h>
 #include "stm32f4xx.h"
+#include "stm32f4xx_usart.h"
 
 volatile uint8_t rxdata = 0;
 
 int main(void) 
 {
+	SystemInit();
+	SystemCoreClockUpdate();
+
 	// clock configutation
 	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOB, ENABLE); // TX: PB6 RX: PB7
 	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOD, ENABLE); // LED  LED4: PD12 	LED3: PD13
@@ -13,9 +17,6 @@ int main(void)
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_SYSCFG, ENABLE);
 	
 	NVIC_PriorityGroupConfig(NVIC_PriorityGroup_4);
-	
-	GPIO_PinAFConfig(GPIOB, GPIO_PinSource6, GPIO_AF_USART1);
-	GPIO_PinAFConfig(GPIOB, GPIO_PinSource7, GPIO_AF_USART1);
 	
 	// gpio initialization
 	GPIO_InitTypeDef GPIO_InitStruct;
@@ -26,6 +27,9 @@ int main(void)
 	GPIO_InitStruct.GPIO_PuPd = GPIO_PuPd_UP;
 	GPIO_InitStruct.GPIO_Speed = GPIO_Speed_50MHz;
 	GPIO_Init(GPIOB, &GPIO_InitStruct);
+	
+	GPIO_PinAFConfig(GPIOB, GPIO_PinSource6, GPIO_AF_USART1);
+	GPIO_PinAFConfig(GPIOB, GPIO_PinSource7, GPIO_AF_USART1);
 	
 	// usart initialization
 	USART_InitTypeDef USART_InitStruct;
@@ -50,7 +54,10 @@ int main(void)
 	
 	char msg[64];
 	while(1){ 
+		while (USART_GetFlagStatus(USART1, USART_FLAG_TXE) == RESET);
 		USART_SendData(USART1, 'A');
+		while (USART_GetFlagStatus(USART1, USART_FLAG_TC) == RESET); 
+		
 		if (rxdata!= 0) { 
 			int idx = 0; 
 			int len = snprintf(msg, sizeof(msg), "Recieved: %c", (char)rxdata); 
