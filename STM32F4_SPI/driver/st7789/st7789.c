@@ -5,6 +5,7 @@
 #include "stm32f4xx.h"
 #include "cpu_delay.h"
 #include "st7789.h"
+#include "font.h"
 
 /*
 PA4  CS
@@ -117,7 +118,7 @@ static void st7789_write_register(uint8_t reg, const uint8_t *data, uint16_t len
 }
 
 
-void st7789_set_range(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2)
+void st7789_set_range_and_gram(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2)
 {
     st7789_write_register(0x2A, (uint8_t[]){
         (x1 >> 8) & 0xFF, x1 & 0xFF,
@@ -128,12 +129,8 @@ void st7789_set_range(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2)
         (y1 >> 8) & 0xFF, y1 & 0xFF,
         (y2 >> 8) & 0xFF, y2 & 0xFF
     }, 4);
-}
-
-
-static void st7789_set_gram_mode(void)
-{
-    st7789_write_register(0x2C, NULL, 0);
+		
+		 st7789_write_register(0x2C, NULL, 0);
 }
 
 
@@ -154,8 +151,7 @@ void st7789_fill_color(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint1
 {	
 		if (!in_screen_range(x1, y1, x2, y2)) return;
 	
-		st7789_set_range(x1, y1, x2, y2);
-		st7789_set_gram_mode();
+		st7789_set_range_and_gram(x1, y1, x2, y2);
 	
     uint8_t color_data[2] = { color >> 8, color & 0xFF };
     uint32_t pixels = (x2 - x1 + 1) * (y2 - y1 + 1);
@@ -172,6 +168,48 @@ void st7789_fill_color(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint1
     GPIO_SetBits(CS_PORT, CS_PIN);
 }
 
+static void st7789_write_single_ascii(uint16_t x, uint16_t y, char ch, uint16_t color, uint16_t bg_color, const font_t *font)
+{
+	if (!in_screen_range(x, y, x+font->width-1, y+font->height-1)) return;
+	
+		st7789_set_range_and_gram(x, y, x+font->width-1, y+font->height-1);
+	
+    uint8_t fg_color_data[2] = { color >> 8, color & 0xFF };
+		uint8_t bg_color_data[2] = { bg_color >> 8, bg_color & 0xFF };
+    uint32_t pixels = font->width * font->height;
+
+    GPIO_ResetBits(CS_PORT, CS_PIN);
+    GPIO_SetBits(DC_PORT, DC_PIN); 	// data mode
+		
+		uint16_t bytes_per_row = (font->width + 7) / 8;
+		const uint8_t* model = font->model + (ch - ' ') * font->height * bytes_per_row;
+
+		for (uint16_t row = 0; row < font->height; row++) {
+				const uint8_t *row_data = model + row * bytes_per_row;
+				for (uint16_t col = 0; col < font->width; col++) {
+						uint8_t pixel = row_data[col / 8] & (1 << (7 - col % 8));
+						uint8_t *color_data = pixel ? fg_color_data : bg_color_data;
+
+						while (SPI_GetFlagStatus(SPI1, SPI_FLAG_TXE) == RESET);
+						SPI_SendData(SPI1, color_data[0]);
+						while (SPI_GetFlagStatus(SPI1, SPI_FLAG_TXE) == RESET);
+						SPI_SendData(SPI1, color_data[1]);
+				}
+		}
+
+    while (SPI_GetFlagStatus(SPI1, SPI_FLAG_BSY) == SET);
+    GPIO_SetBits(CS_PORT, CS_PIN);
+}
+
+void st7789_write_ascii(uint16_t x, uint16_t y, char* str, uint16_t color, uint16_t bg_color, const font_t *font)
+{	
+	while (*str) 
+	{
+		st7789_write_single_ascii(x, y, *str, color, bg_color, font);
+		x += font->width;
+		str++;
+	}
+}
 
 static void st7789_set_backlight (bool on) 
 {
